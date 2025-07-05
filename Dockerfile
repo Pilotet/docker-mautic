@@ -1,2 +1,2 @@
-FROM mautic/mautic:latest
+FROM mautic/mautic:v5
 EXPOSE 10000
