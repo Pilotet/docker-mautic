@@ -12,9 +12,10 @@ RUN a2enmod rewrite
 
 # Descarga Mautic 5
 WORKDIR /var/www/html
-RUN curl -L https://github.com/mautic/mautic/releases/latest/download/mautic.zip -o mautic.zip \
+RUN curl -L https://github.com/mautic/mautic/releases/download/5.0.3/5.0.3.zip -o mautic.zip \
     && unzip mautic.zip -d . \
-    && rm mautic.zip
+    && mv 5.0.3/* . \
+    && rm -rf 5.0.3 mautic.zip
 
 # Permisos
 RUN chown -R www-data:www-data /var/www/html
