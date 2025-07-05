@@ -1,25 +1,21 @@
 FROM php:8.1-apache
 
-# Instala dependencias del sistema
+# Instalar dependencias
 RUN apt-get update && apt-get install -y \
     libicu-dev libpng-dev libjpeg-dev libfreetype6-dev \
     libxml2-dev libzip-dev unzip git curl \
     libonig-dev libpq-dev \
-    && docker-php-ext-install intl pdo pdo_pgsql zip gd xml mbstring opcache
+    && docker-php-ext-install intl pdo pdo_pgsql zip gd xml mbstring opcache \
+    && a2enmod rewrite
 
-# Habilita mod_rewrite
-RUN a2enmod rewrite
+# Instalar Composer
+RUN curl -sS https://getcomposer.org/installer | php -- --install-dir=/usr/local/bin --filename=composer
 
-# Descarga Mautic 5
+# Clonar Mautic y preparar
 WORKDIR /var/www/html
-RUN curl -L https://github.com/mautic/mautic/releases/download/5.0.3/5.0.3.zip -o mautic.zip \
-    && unzip mautic.zip -d . \
-    && mv 5.0.3/* . \
-    && rm -rf 5.0.3 mautic.zip
-
-# Permisos
-RUN chown -R www-data:www-data /var/www/html
+RUN git clone --branch 5.0.3 --depth=1 https://github.com/mautic/mautic.git . \
+    && composer install --no-dev --no-interaction --optimize-autoloader \
+    && chown -R www-data:www-data /var/www/html
 
 EXPOSE 10000
-
 CMD ["apache2-foreground"]
