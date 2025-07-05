@@ -1,34 +1,38 @@
+# Usa PHP con Apache
 FROM php:8.1-apache
 
-# Instala librerías de sistema + extensiones PHP
+# Instala dependencias del sistema y extensiones necesarias
 RUN apt-get update && apt-get install -y \
     libicu-dev libpng-dev libjpeg-dev libfreetype6-dev \
     libxml2-dev libzip-dev unzip git curl \
     libonig-dev libpq-dev libc-client-dev libkrb5-dev \
     libssl-dev libevent-dev libz-dev gnupg \
-    && docker-php-ext-install intl pdo pdo_pgsql zip gd xml mbstring opcache sockets bcmath \
+    zlib1g-dev libwebp-dev libxpm-dev libvpx-dev \
+    nodejs npm \
+    && docker-php-ext-configure gd --with-freetype --with-jpeg --with-webp \
+    && docker-php-ext-install \
+        intl pdo pdo_pgsql pdo_mysql zip gd xml mbstring opcache sockets bcmath \
     && docker-php-ext-configure imap --with-kerberos --with-imap-ssl \
     && docker-php-ext-install imap
 
-# Redis
-RUN pecl install redis && docker-php-ext-enable redis
+# Habilita módulos de Apache necesarios
+RUN a2enmod rewrite headers
 
-# Apache
-RUN a2enmod rewrite
-
-# Composer
-RUN curl -sS https://getcomposer.org/installer | php \
-    && mv composer.phar /usr/local/bin/composer
-
-# Node.js + npm
-RUN curl -fsSL https://deb.nodesource.com/setup_18.x | bash - \
-    && apt-get install -y nodejs
-
-# Instala Mautic 5
+# Clona el código fuente de Mautic
 WORKDIR /var/www/html
 RUN git clone --branch 5.0.3 --depth=1 https://github.com/mautic/mautic.git . \
-    && composer install --no-dev --no-interaction --optimize-autoloader \
-    && chown -R www-data:www-data /var/www/html
+    && composer install --no-dev --no-interaction --optimize-autoloader
 
-EXPOSE 10000
-CMD ["apache2-foreground"]
+# Construye los assets de Mautic
+RUN npm ci --prefer-offline --no-audit \
+    && npx patch-package \
+    && npm run build
+
+# Genera los assets finales
+RUN bin/console mautic:assets:generate || true
+
+# Corrige permisos
+RUN chown -R www-data:www-data /var/www/html
+
+# Expón el puerto (Render detectará esto)
+EXPOSE 80
